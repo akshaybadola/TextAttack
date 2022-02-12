@@ -94,19 +94,19 @@ class AttackLogManager:
             ["Number of skipped attacks:", attack_success_stats["skipped_attacks"]],
             [
                 "Original accuracy:",
-                str(attack_success_stats["original_accuracy"]) + "%",
+                int(attack_success_stats["original_accuracy"]),
             ],
             [
                 "Accuracy under attack:",
-                str(attack_success_stats["attack_accuracy_perc"]) + "%",
+                int(attack_success_stats["attack_accuracy_perc"]),
             ],
             [
                 "Attack success rate:",
-                str(attack_success_stats["attack_success_rate"]) + "%",
+                int(attack_success_stats["attack_success_rate"]),
             ],
             [
                 "Average perturbed word %:",
-                str(words_perturbed_stats["avg_word_perturbed_perc"]) + "%",
+                int(words_perturbed_stats["avg_word_perturbed_perc"]),
             ],
             [
                 "Average num. words per input:",

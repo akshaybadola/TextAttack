@@ -107,6 +107,7 @@ class Attacker:
 
         No parallel processing is involved.
         """
+
         if torch.cuda.is_available():
             self.attack.cuda_()
 

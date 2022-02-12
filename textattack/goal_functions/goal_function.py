@@ -66,6 +66,7 @@ class GoalFunction(ABC):
         self.ground_truth_output = ground_truth_output
         self.num_queries = 0
         result, _ = self.get_result(attacked_text, check_skip=True)
+        # print(f"result: {result}, {_}")
         return result, _
 
     def get_output(self, attacked_text):
@@ -114,7 +115,9 @@ class GoalFunction(ABC):
         return results, self.num_queries == self.query_budget
 
     def _get_goal_status(self, model_output, attacked_text, check_skip=False):
+        # print(f"model output: {model_output}")
         should_skip = check_skip and self._should_skip(model_output, attacked_text)
+
         if should_skip:
             return GoalFunctionResultStatus.SKIPPED
         if self.maximizable:

@@ -11,7 +11,6 @@ from .word_swap import WordSwap
 class WordSwapHomoglyphSwap(WordSwap):
     """Transforms an input by replacing its words with visually similar words
     using homoglyph swaps.
-
     >>> from textattack.transformations import WordSwapHomoglyphSwap
     >>> from textattack.augmentation import Augmenter
 

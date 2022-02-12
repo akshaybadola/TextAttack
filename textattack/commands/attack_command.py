@@ -9,6 +9,7 @@ from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 
 from textattack import Attacker, CommandLineAttackArgs, DatasetArgs, ModelArgs
 from textattack.commands import TextAttackCommand
+from common_pyutil.monitor import Timer
 
 
 class AttackCommand(TextAttackCommand):
@@ -18,22 +19,25 @@ class AttackCommand(TextAttackCommand):
     """
 
     def run(self, args):
-        attack_args = CommandLineAttackArgs(**vars(args))
-        dataset = DatasetArgs._create_dataset_from_args(attack_args)
+        timer = Timer()
+        with timer:
+            attack_args = CommandLineAttackArgs(**vars(args))
+            dataset = DatasetArgs._create_dataset_from_args(attack_args)
 
-        if attack_args.interactive:
-            model_wrapper = ModelArgs._create_model_from_args(attack_args)
-            attack = CommandLineAttackArgs._create_attack_from_args(
-                attack_args, model_wrapper
-            )
-            Attacker.attack_interactive(attack)
-        else:
-            model_wrapper = ModelArgs._create_model_from_args(attack_args)
-            attack = CommandLineAttackArgs._create_attack_from_args(
-                attack_args, model_wrapper
-            )
-            attacker = Attacker(attack, dataset, attack_args)
-            attacker.attack_dataset()
+            if attack_args.interactive:
+                model_wrapper = ModelArgs._create_model_from_args(attack_args)
+                attack = CommandLineAttackArgs._create_attack_from_args(
+                    attack_args, model_wrapper
+                )
+                Attacker.attack_interactive(attack)
+            else:
+                model_wrapper = ModelArgs._create_model_from_args(attack_args)
+                attack = CommandLineAttackArgs._create_attack_from_args(
+                    attack_args, model_wrapper
+                )
+                attacker = Attacker(attack, dataset, attack_args)
+                attacker.attack_dataset()
+        print(f"Attack Time: {timer.time}")
 
     @staticmethod
     def register_subcommand(main_parser: ArgumentParser):

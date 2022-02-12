@@ -7,11 +7,10 @@ ModelArgs Class
 from dataclasses import dataclass
 import json
 import os
-
 import transformers
-
 import textattack
 from textattack.shared.utils import ARGS_SPLIT_TOKEN, load_module_from_file
+from common_pyutil.monitor import Timer
 
 HUGGINGFACE_MODELS = {
     #
@@ -172,140 +171,144 @@ class ModelArgs:
         """Given ``ModelArgs``, return specified
         ``textattack.models.wrappers.ModelWrapper`` object."""
 
-        assert isinstance(
-            args, cls
-        ), f"Expect args to be of type `{type(cls)}`, but got type `{type(args)}`."
+        timer = Timer()
+        with timer:
+            assert isinstance(
+                args, cls
+            ), f"Expect args to be of type `{type(cls)}`, but got type `{type(args)}`."
 
-        if args.model_from_file:
-            # Support loading the model from a .py file where a model wrapper
-            # is instantiated.
-            colored_model_name = textattack.shared.utils.color_text(
-                args.model_from_file, color="blue", method="ansi"
-            )
-            textattack.shared.logger.info(
-                f"Loading model and tokenizer from file: {colored_model_name}"
-            )
-            if ARGS_SPLIT_TOKEN in args.model_from_file:
-                model_file, model_name = args.model_from_file.split(ARGS_SPLIT_TOKEN)
-            else:
-                _, model_name = args.model_from_file, "model"
-            try:
-                model_module = load_module_from_file(args.model_from_file)
-            except Exception:
-                raise ValueError(f"Failed to import file {args.model_from_file}.")
-            try:
-                model = getattr(model_module, model_name)
-            except AttributeError:
-                raise AttributeError(
-                    f"Variable `{model_name}` not found in module {args.model_from_file}."
+            if args.model_from_file:
+                # Support loading the model from a .py file where a model wrapper
+                # is instantiated.
+                colored_model_name = textattack.shared.utils.color_text(
+                    args.model_from_file, color="blue", method="ansi"
                 )
-
-            if not isinstance(model, textattack.models.wrappers.ModelWrapper):
-                raise TypeError(
-                    f"Variable `{model_name}` must be of type "
-                    f"``textattack.models.ModelWrapper``, got type {type(model)}."
-                )
-        elif (args.model in HUGGINGFACE_MODELS) or args.model_from_huggingface:
-            # Support loading models automatically from the HuggingFace model hub.
-
-            model_name = (
-                HUGGINGFACE_MODELS[args.model]
-                if (args.model in HUGGINGFACE_MODELS)
-                else args.model_from_huggingface
-            )
-            colored_model_name = textattack.shared.utils.color_text(
-                model_name, color="blue", method="ansi"
-            )
-            textattack.shared.logger.info(
-                f"Loading pre-trained model from HuggingFace model repository: {colored_model_name}"
-            )
-            model = transformers.AutoModelForSequenceClassification.from_pretrained(
-                model_name
-            )
-            tokenizer = transformers.AutoTokenizer.from_pretrained(
-                model_name, use_fast=True
-            )
-            model = textattack.models.wrappers.HuggingFaceModelWrapper(model, tokenizer)
-        elif args.model in TEXTATTACK_MODELS:
-            # Support loading TextAttack pre-trained models via just a keyword.
-            colored_model_name = textattack.shared.utils.color_text(
-                args.model, color="blue", method="ansi"
-            )
-            if args.model.startswith("lstm"):
                 textattack.shared.logger.info(
-                    f"Loading pre-trained TextAttack LSTM: {colored_model_name}"
+                    f"Loading model and tokenizer from file: {colored_model_name}"
                 )
-                model = textattack.models.helpers.LSTMForClassification.from_pretrained(
-                    args.model
+                if ARGS_SPLIT_TOKEN in args.model_from_file:
+                    model_file, model_name = args.model_from_file.split(ARGS_SPLIT_TOKEN)
+                else:
+                    _, model_name = args.model_from_file, "model"
+                try:
+                    model_module = load_module_from_file(args.model_from_file)
+                except Exception:
+                    raise ValueError(f"Failed to import file {args.model_from_file}.")
+                try:
+                    model = getattr(model_module, model_name)
+                except AttributeError:
+                    raise AttributeError(
+                        f"Variable `{model_name}` not found in module {args.model_from_file}."
+                    )
+
+                if not isinstance(model, textattack.models.wrappers.ModelWrapper):
+                    raise TypeError(
+                        f"Variable `{model_name}` must be of type "
+                        f"``textattack.models.ModelWrapper``, got type {type(model)}."
+                    )
+            elif (args.model in HUGGINGFACE_MODELS) or args.model_from_huggingface:
+                # Support loading models automatically from the HuggingFace model hub.
+
+                model_name = (
+                    HUGGINGFACE_MODELS[args.model]
+                    if (args.model in HUGGINGFACE_MODELS)
+                    else args.model_from_huggingface
                 )
-            elif args.model.startswith("cnn"):
+                colored_model_name = textattack.shared.utils.color_text(
+                    model_name, color="blue", method="ansi"
+                )
                 textattack.shared.logger.info(
-                    f"Loading pre-trained TextAttack CNN: {colored_model_name}"
+                    f"Loading pre-trained model from HuggingFace model repository: {colored_model_name}"
                 )
-                model = (
-                    textattack.models.helpers.WordCNNForClassification.from_pretrained(
+                model = transformers.AutoModelForSequenceClassification.from_pretrained(
+                    model_name
+                )
+                tokenizer = transformers.AutoTokenizer.from_pretrained(
+                    model_name, use_fast=True
+                )
+                model = textattack.models.wrappers.HuggingFaceModelWrapper(model, tokenizer)
+            elif args.model in TEXTATTACK_MODELS:
+                # Support loading TextAttack pre-trained models via just a keyword.
+                colored_model_name = textattack.shared.utils.color_text(
+                    args.model, color="blue", method="ansi"
+                )
+                if args.model.startswith("lstm"):
+                    textattack.shared.logger.info(
+                        f"Loading pre-trained TextAttack LSTM: {colored_model_name}"
+                    )
+                    model = textattack.models.helpers.LSTMForClassification.from_pretrained(
                         args.model
                     )
-                )
-            elif args.model.startswith("t5"):
-                model = textattack.models.helpers.T5ForTextToText.from_pretrained(
-                    args.model
-                )
-            else:
-                raise ValueError(f"Unknown textattack model {args.model}")
-
-            # Choose the approprate model wrapper (based on whether or not this is
-            # a HuggingFace model).
-            if isinstance(model, textattack.models.helpers.T5ForTextToText):
-                model = textattack.models.wrappers.HuggingFaceModelWrapper(
-                    model, model.tokenizer
-                )
-            else:
-                model = textattack.models.wrappers.PyTorchModelWrapper(
-                    model, model.tokenizer
-                )
-        elif args.model and os.path.exists(args.model):
-            # Support loading TextAttack-trained models via just their folder path.
-            # If `args.model` is a path/directory, let's assume it was a model
-            # trained with textattack, and try and load it.
-            if os.path.exists(os.path.join(args.model, "t5-wrapper-config.json")):
-                model = textattack.models.helpers.T5ForTextToText.from_pretrained(
-                    args.model
-                )
-                model = textattack.models.wrappers.HuggingFaceModelWrapper(
-                    model, model.tokenizer
-                )
-            elif os.path.exists(os.path.join(args.model, "config.json")):
-                with open(os.path.join(args.model, "config.json")) as f:
-                    config = json.load(f)
-                model_class = config["architectures"]
-                if (
-                    model_class == "LSTMForClassification"
-                    or model_class == "WordCNNForClassification"
-                ):
-                    model = eval(
-                        f"textattack.models.helpers.{model_class}.from_pretrained({args.model})"
+                elif args.model.startswith("cnn"):
+                    textattack.shared.logger.info(
+                        f"Loading pre-trained TextAttack CNN: {colored_model_name}"
                     )
-                    model = textattack.models.wrappers.PyTorchModelWrapper(
-                        model, model.tokenizer
-                    )
-                else:
-                    # assume the model is from HuggingFace.
                     model = (
-                        transformers.AutoModelForSequenceClassification.from_pretrained(
+                        textattack.models.helpers.WordCNNForClassification.from_pretrained(
                             args.model
                         )
                     )
-                    tokenizer = transformers.AutoTokenizer.from_pretrained(
-                        args.model, use_fast=True
+                elif args.model.startswith("t5"):
+                    model = textattack.models.helpers.T5ForTextToText.from_pretrained(
+                        args.model
+                    )
+                else:
+                    raise ValueError(f"Unknown textattack model {args.model}")
+
+                # Choose the approprate model wrapper (based on whether or not this is
+                # a HuggingFace model).
+                if isinstance(model, textattack.models.helpers.T5ForTextToText):
+                    model = textattack.models.wrappers.HuggingFaceModelWrapper(
+                        model, model.tokenizer
+                    )
+                else:
+                    model = textattack.models.wrappers.PyTorchModelWrapper(
+                        model, model.tokenizer
+                    )
+            elif args.model and os.path.exists(args.model):
+                # Support loading TextAttack-trained models via just their folder path.
+                # If `args.model` is a path/directory, let's assume it was a model
+                # trained with textattack, and try and load it.
+                if os.path.exists(os.path.join(args.model, "t5-wrapper-config.json")):
+                    model = textattack.models.helpers.T5ForTextToText.from_pretrained(
+                        args.model
                     )
                     model = textattack.models.wrappers.HuggingFaceModelWrapper(
-                        model, tokenizer
+                        model, model.tokenizer
                     )
-        else:
-            raise ValueError(f"Error: unsupported TextAttack model {args.model}")
+                elif os.path.exists(os.path.join(args.model, "config.json")):
+                    with open(os.path.join(args.model, "config.json")) as f:
+                        config = json.load(f)
+                    model_class = config["architectures"]
+                    if (
+                        model_class == "LSTMForClassification"
+                        or model_class == "WordCNNForClassification"
+                    ):
+                        model = eval(
+                            f"textattack.models.helpers.{model_class}.from_pretrained({args.model})"
+                        )
+                        model = textattack.models.wrappers.PyTorchModelWrapper(
+                            model, model.tokenizer
+                        )
+                    else:
+                        # assume the model is from HuggingFace.
+                        model = (
+                            transformers.AutoModelForSequenceClassification.from_pretrained(
+                                args.model
+                            )
+                        )
+                        tokenizer = transformers.AutoTokenizer.from_pretrained(
+                            args.model, use_fast=True
+                        )
+                        model = textattack.models.wrappers.HuggingFaceModelWrapper(
+                            model, tokenizer
+                        )
+            else:
+                raise ValueError(f"Error: unsupported TextAttack model {args.model}")
 
-        assert isinstance(
-            model, textattack.models.wrappers.ModelWrapper
-        ), "`model` must be of type `textattack.models.wrappers.ModelWrapper`."
+            assert isinstance(
+                model, textattack.models.wrappers.ModelWrapper
+            ), "`model` must be of type `textattack.models.wrappers.ModelWrapper`."
+
+        print(f"Model create time: {timer.time}")
         return model

@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 import json
 import os
 import sys
+from common_pyutil.monitor import Timer
 import time
 
 import textattack
@@ -53,6 +54,9 @@ BLACK_BOX_TRANSFORMATION_CLASS_NAMES = {
     "word-swap-masked-lm": "textattack.transformations.WordSwapMaskedLM",
     "word-swap-hownet": "textattack.transformations.WordSwapHowNet",
     "word-swap-qwerty": "textattack.transformations.WordSwapQWERTY",
+    "word-swap-root": "textattack.transformations.WordSwapRoot",
+    "word-swap-dobj": "textattack.transformations.WordSwapDobj",
+    "word-swap-nsubj": "textattack.transformations.WordSwapNsubj",
 }
 
 
@@ -206,6 +210,7 @@ class AttackArgs:
     disable_stdout: bool = False
     silent: bool = False
     enable_advance_metrics: bool = False
+    word_replacement_choice: str = "synonym"
 
     def __post_init__(self):
         if self.num_successful_examples:
@@ -230,6 +235,12 @@ class AttackArgs:
         assert (
             self.num_workers_per_device > 0
         ), "`num_workers_per_device` must be greater than 0."
+
+        # custom code
+        if self.word_replacement_choice:
+            assert(
+                self.word_replacement_choice in ["synonym", "antonym", "hypernym", "hyponym"]
+            ), "Word Replacement_choice must be either synonym, antonym, hypernym or hyponym"
 
     @classmethod
     def _add_parser_args(cls, parser):
@@ -371,6 +382,12 @@ class AttackArgs:
             default=default_obj.enable_advance_metrics,
             help="Enable calculation and display of optional advance post-hoc metrics like perplexity, USE distance, etc.",
         )
+        # custom code
+        parser.add_argument(
+            "--word-replacement-choice",
+            default="synonym",
+            help="To replace the selected word using wordnet. Should be set when transformation used is word-swap-{root/dobj/nsubj}",
+        )
 
         return parser
 
@@ -480,6 +497,7 @@ class _CommandLineAttackArgs:
     model_batch_size: int = 32
     model_cache_size: int = 2 ** 18
     constraint_cache_size: int = 2 ** 18
+    word_replacement_choice = "synonym"
 
     @classmethod
     def _add_parser_args(cls, parser):
@@ -658,59 +676,62 @@ class _CommandLineAttackArgs:
         """Given ``CommandLineArgs`` and ``ModelWrapper``, return specified
         ``Attack`` object."""
 
-        assert isinstance(
-            args, cls
-        ), f"Expect args to be of type `{type(cls)}`, but got type `{type(args)}`."
+        timer = Timer()
+        with timer:
+            assert isinstance(
+                args, cls
+            ), f"Expect args to be of type `{type(cls)}`, but got type `{type(args)}`."
 
-        if args.attack_recipe:
-            if ARGS_SPLIT_TOKEN in args.attack_recipe:
-                recipe_name, params = args.attack_recipe.split(ARGS_SPLIT_TOKEN)
-                if recipe_name not in ATTACK_RECIPE_NAMES:
-                    raise ValueError(f"Error: unsupported recipe {recipe_name}")
-                recipe = eval(
-                    f"{ATTACK_RECIPE_NAMES[recipe_name]}.build(model_wrapper, {params})"
-                )
-            elif args.attack_recipe in ATTACK_RECIPE_NAMES:
-                recipe = eval(
-                    f"{ATTACK_RECIPE_NAMES[args.attack_recipe]}.build(model_wrapper)"
-                )
+            if args.attack_recipe:
+                if ARGS_SPLIT_TOKEN in args.attack_recipe:
+                    recipe_name, params = args.attack_recipe.split(ARGS_SPLIT_TOKEN)
+                    if recipe_name not in ATTACK_RECIPE_NAMES:
+                        raise ValueError(f"Error: unsupported recipe {recipe_name}")
+                    recipe = eval(
+                        f"{ATTACK_RECIPE_NAMES[recipe_name]}.build(model_wrapper, {params})"
+                    )
+                elif args.attack_recipe in ATTACK_RECIPE_NAMES:
+                    recipe = eval(
+                        f"{ATTACK_RECIPE_NAMES[args.attack_recipe]}.build(model_wrapper)"
+                    )
+                else:
+                    raise ValueError(f"Invalid recipe {args.attack_recipe}")
+                if args.query_budget:
+                    recipe.goal_function.query_budget = args.query_budget
+                recipe.goal_function.model_cache_size = args.model_cache_size
+                recipe.constraint_cache_size = args.constraint_cache_size
+                return recipe
+            elif args.attack_from_file:
+                if ARGS_SPLIT_TOKEN in args.attack_from_file:
+                    attack_file, attack_name = args.attack_from_file.split(ARGS_SPLIT_TOKEN)
+                else:
+                    attack_file, attack_name = args.attack_from_file, "attack"
+                attack_module = load_module_from_file(attack_file)
+                if not hasattr(attack_module, attack_name):
+                    raise ValueError(
+                        f"Loaded `{attack_file}` but could not find `{attack_name}`."
+                    )
+                attack_func = getattr(attack_module, attack_name)
+                return attack_func(model_wrapper)
             else:
-                raise ValueError(f"Invalid recipe {args.attack_recipe}")
-            if args.query_budget:
-                recipe.goal_function.query_budget = args.query_budget
-            recipe.goal_function.model_cache_size = args.model_cache_size
-            recipe.constraint_cache_size = args.constraint_cache_size
-            return recipe
-        elif args.attack_from_file:
-            if ARGS_SPLIT_TOKEN in args.attack_from_file:
-                attack_file, attack_name = args.attack_from_file.split(ARGS_SPLIT_TOKEN)
-            else:
-                attack_file, attack_name = args.attack_from_file, "attack"
-            attack_module = load_module_from_file(attack_file)
-            if not hasattr(attack_module, attack_name):
-                raise ValueError(
-                    f"Loaded `{attack_file}` but could not find `{attack_name}`."
-                )
-            attack_func = getattr(attack_module, attack_name)
-            return attack_func(model_wrapper)
-        else:
-            goal_function = cls._create_goal_function_from_args(args, model_wrapper)
-            transformation = cls._create_transformation_from_args(args, model_wrapper)
-            constraints = cls._create_constraints_from_args(args)
-            if ARGS_SPLIT_TOKEN in args.search_method:
-                search_name, params = args.search_method.split(ARGS_SPLIT_TOKEN)
-                if search_name not in SEARCH_METHOD_CLASS_NAMES:
-                    raise ValueError(f"Error: unsupported search {search_name}")
-                search_method = eval(
-                    f"{SEARCH_METHOD_CLASS_NAMES[search_name]}({params})"
-                )
-            elif args.search_method in SEARCH_METHOD_CLASS_NAMES:
-                search_method = eval(
-                    f"{SEARCH_METHOD_CLASS_NAMES[args.search_method]}()"
-                )
-            else:
-                raise ValueError(f"Error: unsupported attack {args.search_method}")
+                goal_function = cls._create_goal_function_from_args(args, model_wrapper)
+                transformation = cls._create_transformation_from_args(args, model_wrapper)
+                constraints = cls._create_constraints_from_args(args)
+                if ARGS_SPLIT_TOKEN in args.search_method:
+                    search_name, params = args.search_method.split(ARGS_SPLIT_TOKEN)
+                    if search_name not in SEARCH_METHOD_CLASS_NAMES:
+                        raise ValueError(f"Error: unsupported search {search_name}")
+                    search_method = eval(
+                        f"{SEARCH_METHOD_CLASS_NAMES[search_name]}({params})"
+                    )
+                elif args.search_method in SEARCH_METHOD_CLASS_NAMES:
+                    search_method = eval(
+                        f"{SEARCH_METHOD_CLASS_NAMES[args.search_method]}()"
+                    )
+                else:
+                    raise ValueError(f"Error: unsupported attack {args.search_method}")
 
+        print(f"Creating attack time: {timer.time}")
         return Attack(
             goal_function,
             constraints,

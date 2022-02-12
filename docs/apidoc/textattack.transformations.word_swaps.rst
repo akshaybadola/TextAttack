@@ -115,3 +115,9 @@ textattack.transformations.word\_swaps package
    :members:
    :undoc-members:
    :show-inheritance:
+
+
+.. automodule:: textattack.transformations.word_swaps.word_swap_root_word
+   :members:
+   :undoc-members:
+   :show-inheritance:

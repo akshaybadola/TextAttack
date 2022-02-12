@@ -8,7 +8,7 @@ AugmentCommand class
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentError, ArgumentParser
 import csv
 import os
-import time
+from common_pyutil.monitor import Timer
 
 import tqdm
 
@@ -120,72 +120,74 @@ class AugmentCommand(TextAttackCommand):
                 print("--------------------------------------------------------")
         else:
             textattack.shared.utils.set_seed(args.random_seed)
-            start_time = time.time()
-            if not (args.input_csv and args.input_column and args.output_csv):
-                raise ArgumentError(
-                    "The following arguments are required: --csv, --input-column/--i"
-                )
-            # Validate input/output paths.
-            if not os.path.exists(args.input_csv):
-                raise FileNotFoundError(f"Can't find CSV at location {args.input_csv}")
-            if os.path.exists(args.output_csv):
-                if args.overwrite:
-                    textattack.shared.logger.info(
-                        f"Preparing to overwrite {args.output_csv}."
+            timer = Timer
+            with timer:
+                if not (args.input_csv and args.input_column and args.output_csv):
+                    raise ArgumentError(
+                        "The following arguments are required: --csv, --input-column/--i"
                     )
-                else:
-                    raise OSError(
-                        f"Outfile {args.output_csv} exists and --overwrite not set."
+                # Validate input/output paths.
+                if not os.path.exists(args.input_csv):
+                    raise FileNotFoundError(f"Can't find CSV at location {args.input_csv}")
+                if os.path.exists(args.output_csv):
+                    if args.overwrite:
+                        textattack.shared.logger.info(
+                            f"Preparing to overwrite {args.output_csv}."
+                        )
+                    else:
+                        raise OSError(
+                            f"Outfile {args.output_csv} exists and --overwrite not set."
+                        )
+                # Read in CSV file as a list of dictionaries. Use the CSV sniffer to
+                # try and automatically infer the correct CSV format.
+                csv_file = open(args.input_csv, "r")
+                dialect = csv.Sniffer().sniff(csv_file.readline(), delimiters=";,")
+                csv_file.seek(0)
+                rows = [
+                    row
+                    for row in csv.DictReader(
+                        csv_file, dialect=dialect, skipinitialspace=True
                     )
-            # Read in CSV file as a list of dictionaries. Use the CSV sniffer to
-            # try and automatically infer the correct CSV format.
-            csv_file = open(args.input_csv, "r")
-            dialect = csv.Sniffer().sniff(csv_file.readline(), delimiters=";,")
-            csv_file.seek(0)
-            rows = [
-                row
-                for row in csv.DictReader(
-                    csv_file, dialect=dialect, skipinitialspace=True
+                ]
+                # Validate input column.
+                row_keys = set(rows[0].keys())
+                if args.input_column not in row_keys:
+                    raise ValueError(
+                        f"Could not find input column {args.input_column} in CSV. Found keys: {row_keys}"
+                    )
+                textattack.shared.logger.info(
+                    f"Read {len(rows)} rows from {args.input_csv}. Found columns {row_keys}."
                 )
-            ]
-            # Validate input column.
-            row_keys = set(rows[0].keys())
-            if args.input_column not in row_keys:
-                raise ValueError(
-                    f"Could not find input column {args.input_column} in CSV. Found keys: {row_keys}"
-                )
-            textattack.shared.logger.info(
-                f"Read {len(rows)} rows from {args.input_csv}. Found columns {row_keys}."
-            )
 
-            augmenter = eval(AUGMENTATION_RECIPE_NAMES[args.recipe])(
-                pct_words_to_swap=args.pct_words_to_swap,
-                transformations_per_example=args.transformations_per_example,
-                high_yield=args.high_yield,
-                fast_augment=args.fast_augment,
-            )
-
-            output_rows = []
-            for row in tqdm.tqdm(rows, desc="Augmenting rows"):
-                text_input = row[args.input_column]
-                if not args.exclude_original:
-                    output_rows.append(row)
-                for augmentation in augmenter.augment(text_input):
-                    augmented_row = row.copy()
-                    augmented_row[args.input_column] = augmentation
-                    output_rows.append(augmented_row)
-            # Print to file.
-            with open(args.output_csv, "w") as outfile:
-                csv_writer = csv.writer(
-                    outfile, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
+                augmenter = eval(AUGMENTATION_RECIPE_NAMES[args.recipe])(
+                    pct_words_to_swap=args.pct_words_to_swap,
+                    transformations_per_example=args.transformations_per_example,
+                    high_yield=args.high_yield,
+                    fast_augment=args.fast_augment,
                 )
-                # Write header.
-                csv_writer.writerow(output_rows[0].keys())
-                # Write rows.
-                for row in output_rows:
-                    csv_writer.writerow(row.values())
+
+                output_rows = []
+                for row in tqdm.tqdm(rows, desc="Augmenting rows"):
+                    text_input = row[args.input_column]
+                    if not args.exclude_original:
+                        output_rows.append(row)
+                    for augmentation in augmenter.augment(text_input):
+                        augmented_row = row.copy()
+                        augmented_row[args.input_column] = augmentation
+                        output_rows.append(augmented_row)
+                # Print to file.
+                with open(args.output_csv, "w") as outfile:
+                    csv_writer = csv.writer(
+                        outfile, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
+                    )
+                    # Write header.
+                    csv_writer.writerow(output_rows[0].keys())
+                    # Write rows.
+                    for row in output_rows:
+                        csv_writer.writerow(row.values())
+
             textattack.shared.logger.info(
-                f"Wrote {len(output_rows)} augmentations to {args.output_csv} in {time.time() - start_time}s."
+                f"Wrote {len(output_rows)} augmentations to {args.output_csv} in {timer.time}s."
             )
 
     @staticmethod

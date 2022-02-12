@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 import textattack
 from textattack.shared.utils import ARGS_SPLIT_TOKEN, load_module_from_file
+from common_pyutil.monitor import Timer
 
 HUGGINGFACE_DATASET_BY_MODEL = {
     #
@@ -223,80 +224,83 @@ class DatasetArgs:
         """Given ``DatasetArgs``, return specified
         ``textattack.dataset.Dataset`` object."""
 
-        assert isinstance(
-            args, cls
-        ), f"Expect args to be of type `{type(cls)}`, but got type `{type(args)}`."
+        timer = Timer()
+        with timer:
+            assert isinstance(
+                args, cls
+            ), f"Expect args to be of type `{type(cls)}`, but got type `{type(args)}`."
 
-        # Automatically detect dataset for huggingface & textattack models.
-        # This allows us to use the --model shortcut without specifying a dataset.
-        if hasattr(args, "model"):
-            args.dataset_by_model = args.model
-        if args.dataset_by_model in HUGGINGFACE_DATASET_BY_MODEL:
-            args.dataset_from_huggingface = HUGGINGFACE_DATASET_BY_MODEL[
-                args.dataset_by_model
-            ]
-        elif args.dataset_by_model in TEXTATTACK_DATASET_BY_MODEL:
-            dataset = TEXTATTACK_DATASET_BY_MODEL[args.dataset_by_model]
-            if dataset[0].startswith("textattack"):
-                # unsavory way to pass custom dataset classes
-                # ex: dataset = ('textattack.datasets.helpers.TedMultiTranslationDataset', 'en', 'de')
-                dataset = eval(f"{dataset[0]}")(*dataset[1:])
-                return dataset
-            else:
-                args.dataset_from_huggingface = dataset
-
-        # Get dataset from args.
-        if args.dataset_from_file:
-            textattack.shared.logger.info(
-                f"Loading model and tokenizer from file: {args.model_from_file}"
-            )
-            if ARGS_SPLIT_TOKEN in args.dataset_from_file:
-                dataset_file, dataset_name = args.dataset_from_file.split(
-                    ARGS_SPLIT_TOKEN
-                )
-            else:
-                dataset_file, dataset_name = args.dataset_from_file, "dataset"
-            try:
-                dataset_module = load_module_from_file(dataset_file)
-            except Exception:
-                raise ValueError(f"Failed to import file {args.dataset_from_file}")
-            try:
-                dataset = getattr(dataset_module, dataset_name)
-            except AttributeError:
-                raise AttributeError(
-                    f"Variable ``dataset`` not found in module {args.dataset_from_file}"
-                )
-        elif args.dataset_from_huggingface:
-            dataset_args = args.dataset_from_huggingface
-            if isinstance(dataset_args, str):
-                if ARGS_SPLIT_TOKEN in dataset_args:
-                    dataset_args = dataset_args.split(ARGS_SPLIT_TOKEN)
+            # Automatically detect dataset for huggingface & textattack models.
+            # This allows us to use the --model shortcut without specifying a dataset.
+            if hasattr(args, "model"):
+                args.dataset_by_model = args.model
+            if args.dataset_by_model in HUGGINGFACE_DATASET_BY_MODEL:
+                args.dataset_from_huggingface = HUGGINGFACE_DATASET_BY_MODEL[
+                    args.dataset_by_model
+                ]
+            elif args.dataset_by_model in TEXTATTACK_DATASET_BY_MODEL:
+                dataset = TEXTATTACK_DATASET_BY_MODEL[args.dataset_by_model]
+                if dataset[0].startswith("textattack"):
+                    # unsavory way to pass custom dataset classes
+                    # ex: dataset = ('textattack.datasets.helpers.TedMultiTranslationDataset', 'en', 'de')
+                    dataset = eval(f"{dataset[0]}")(*dataset[1:])
+                    return dataset
                 else:
-                    dataset_args = (dataset_args,)
-            if args.dataset_split:
-                if len(dataset_args) > 1:
-                    dataset_args = (
-                        dataset_args[:1] + (args.dataset_split,) + dataset_args[2:]
+                    args.dataset_from_huggingface = dataset
+
+            # Get dataset from args.
+            if args.dataset_from_file:
+                textattack.shared.logger.info(
+                    f"Loading model and tokenizer from file: {args.model_from_file}"
+                )
+                if ARGS_SPLIT_TOKEN in args.dataset_from_file:
+                    dataset_file, dataset_name = args.dataset_from_file.split(
+                        ARGS_SPLIT_TOKEN
                     )
+                else:
+                    dataset_file, dataset_name = args.dataset_from_file, "dataset"
+                try:
+                    dataset_module = load_module_from_file(dataset_file)
+                except Exception:
+                    raise ValueError(f"Failed to import file {args.dataset_from_file}")
+                try:
+                    dataset = getattr(dataset_module, dataset_name)
+                except AttributeError:
+                    raise AttributeError(
+                        f"Variable ``dataset`` not found in module {args.dataset_from_file}"
+                    )
+            elif args.dataset_from_huggingface:
+                dataset_args = args.dataset_from_huggingface
+                if isinstance(dataset_args, str):
+                    if ARGS_SPLIT_TOKEN in dataset_args:
+                        dataset_args = dataset_args.split(ARGS_SPLIT_TOKEN)
+                    else:
+                        dataset_args = (dataset_args,)
+                if args.dataset_split:
+                    if len(dataset_args) > 1:
+                        dataset_args = (
+                            dataset_args[:1] + (args.dataset_split,) + dataset_args[2:]
+                        )
+                        dataset = textattack.datasets.HuggingFaceDataset(
+                            *dataset_args, shuffle=False
+                        )
+                    else:
+                        dataset = textattack.datasets.HuggingFaceDataset(
+                            *dataset_args, split=args.dataset_split, shuffle=False
+                        )
+                else:
                     dataset = textattack.datasets.HuggingFaceDataset(
                         *dataset_args, shuffle=False
                     )
-                else:
-                    dataset = textattack.datasets.HuggingFaceDataset(
-                        *dataset_args, split=args.dataset_split, shuffle=False
-                    )
             else:
-                dataset = textattack.datasets.HuggingFaceDataset(
-                    *dataset_args, shuffle=False
-                )
-        else:
-            raise ValueError("Must supply pretrained model or dataset")
+                raise ValueError("Must supply pretrained model or dataset")
 
-        assert isinstance(
-            dataset, textattack.datasets.Dataset
-        ), "Loaded `dataset` must be of type `textattack.datasets.Dataset`."
+            assert isinstance(
+                dataset, textattack.datasets.Dataset
+            ), "Loaded `dataset` must be of type `textattack.datasets.Dataset`."
 
-        if args.filter_by_labels:
-            dataset.filter_by_labels_(args.filter_by_labels)
+            if args.filter_by_labels:
+                dataset.filter_by_labels_(args.filter_by_labels)
 
+        print(f"Create Dataset Time: {timer.time}")
         return dataset

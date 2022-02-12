@@ -5,6 +5,7 @@ Validators ensure compatibility between search methods, transformations, constra
 
 """
 import re
+from common_pyutil.monitor import Timer
 
 import textattack
 from textattack.goal_functions import (
@@ -47,38 +48,42 @@ def validate_model_goal_function_compatibility(goal_function_class, model_class)
     function that requires probability scores, like the
     UntargetedGoalFunction.
     """
-    # Verify that this is a valid goal function.
-    try:
-        matching_model_globs = MODELS_BY_GOAL_FUNCTION[goal_function_class]
-    except KeyError:
-        matching_model_globs = []
-        logger.warn(f"No entry found for goal function {goal_function_class}.")
-    # Get options for this goal function.
-    # model_module = model_class.__module__
-    model_module_path = ".".join((model_class.__module__, model_class.__name__))
-    # Ensure the model matches one of these options.
-    for glob in matching_model_globs:
-        if re.match(glob, model_module_path):
-            logger.info(
-                f"Goal function {goal_function_class} compatible with model {model_class.__name__}."
-            )
-            return
-    # If we got here, the model does not match the intended goal function.
-    for goal_functions, globs in MODELS_BY_GOAL_FUNCTIONS.items():
-        for glob in globs:
+    timer = Timer()
+    with timer:
+        # Verify that this is a valid goal function.
+        try:
+            matching_model_globs = MODELS_BY_GOAL_FUNCTION[goal_function_class]
+        except KeyError:
+            matching_model_globs = []
+            logger.warn(f"No entry found for goal function {goal_function_class}.")
+        # Get options for this goal function.
+        # model_module = model_class.__module__
+        model_module_path = ".".join((model_class.__module__, model_class.__name__))
+        # Ensure the model matches one of these options.
+        for glob in matching_model_globs:
             if re.match(glob, model_module_path):
-                logger.warn(
-                    f"Unknown if model {model_class.__name__} compatible with provided goal function {goal_function_class}."
-                    f" Found match with other goal functions: {goal_functions}."
+                logger.info(
+                    f"Goal function {goal_function_class} compatible with model {model_class.__name__}."
                 )
                 return
-    # If it matches another goal function, warn user.
+        # If we got here, the model does not match the intended goal function.
+        for goal_functions, globs in MODELS_BY_GOAL_FUNCTIONS.items():
+            for glob in globs:
+                if re.match(glob, model_module_path):
+                    logger.warn(
+                        f"Unknown if model {model_class.__name__} compatible with provided goal function {goal_function_class}."
+                        f" Found match with other goal functions: {goal_functions}."
+                    )
+                    return
+        # If it matches another goal function, warn user.
 
-    # Otherwise, this is an unknown model–perhaps user-provided, or we forgot to
-    # update the corresponding dictionary. Warn user and return.
-    logger.warn(
-        f"Unknown if model of class {model_class} compatible with goal function {goal_function_class}."
-    )
+        # Otherwise, this is an unknown model–perhaps user-provided, or we forgot to
+        # update the corresponding dictionary. Warn user and return.
+        logger.warn(
+            f"Unknown if model of class {model_class} compatible with goal function {goal_function_class}."
+        )
+
+    print(f"Validation of goal function compatibility: {timer.time}")
 
 
 def validate_model_gradient_word_swap_compatibility(model):

@@ -25,6 +25,7 @@ class HuggingFaceModelWrapper(PyTorchModelWrapper):
             (transformers.PreTrainedTokenizer, transformers.PreTrainedTokenizerFast),
         ), f"`tokenizer` must of type `transformers.PreTrainedTokenizer` or `transformers.PreTrainedTokenizerFast`, but got type {type(tokenizer)}."
 
+#        import ipdb; ipdb.set_trace()
         self.model = model
         self.tokenizer = tokenizer
 

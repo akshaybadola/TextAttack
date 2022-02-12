@@ -6,7 +6,6 @@ Word swap transformations act by replacing some words in the input. Subclasses c
 """
 import random
 import string
-
 from textattack.transformations import Transformation
 
 
@@ -23,7 +22,7 @@ class WordSwap(Transformation):
         if not self.letters_to_insert:
             self.letters_to_insert = string.ascii_letters
 
-    def _get_replacement_words(self, word):
+    def _get_replacement_words(self, word, current_text):
         """Returns a set of replacements given an input word. Must be overriden
         by specific word swap transformations.
 
@@ -52,3 +51,7 @@ class WordSwap(Transformation):
             transformed_texts.extend(transformed_texts_idx)
 
         return transformed_texts
+
+    def _get_index_to_replace(self, current_text):
+        """Returns the index of the word to be replaced."""
+        raise NotImplementedError()

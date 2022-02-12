@@ -78,7 +78,7 @@ class WordsPerturbed(Metric):
 
     def avg_perturbation_perc(self):
         self.perturbed_word_percentages = self.perturbed_word_percentages[
-            self.perturbed_word_percentages > 0
+            self.perturbed_word_percentages >= 0
         ]
         average_perc_words_perturbed = self.perturbed_word_percentages.mean()
         average_perc_words_perturbed = round(average_perc_words_perturbed, 2)

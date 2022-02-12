@@ -1,3 +1,5 @@
+# Modified beam_width to 0 from 1 for basic search
+
 """
 Greedy Search
 =================
@@ -13,7 +15,7 @@ class GreedySearch(BeamSearch):
     """
 
     def __init__(self):
-        super().__init__(beam_width=1)
+        super().__init__(beam_width=0)
 
     def extra_repr_keys(self):
         return []

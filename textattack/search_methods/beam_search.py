@@ -24,6 +24,7 @@ class BeamSearch(SearchMethod):
         self.beam_width = beam_width
 
     def perform_search(self, initial_result):
+        # import ipdb; ipdb.set_trace()
         beam = [initial_result.attacked_text]
         best_result = initial_result
         while not best_result.goal_status == GoalFunctionResultStatus.SUCCEEDED:
