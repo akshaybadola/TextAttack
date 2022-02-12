@@ -22,15 +22,9 @@ class WordEmbeddingDistance(Constraint):
         compare_against_original (bool):  If `True`, compare new `x_adv` against the original `x`. Otherwise, compare it against the previous `x_adv`.
     """
 
-    def __init__(
-        self,
-        embedding=WordEmbedding.counterfitted_GLOVE_embedding(),
-        include_unknown_words=True,
-        min_cos_sim=None,
-        max_mse_dist=None,
-        cased=False,
-        compare_against_original=True,
-    ):
+    def __init__(self, embedding=None, include_unknown_words=True,
+                 min_cos_sim=None, max_mse_dist=None, cased=False,
+                 compare_against_original=True, ):
         super().__init__(compare_against_original)
         self.include_unknown_words = include_unknown_words
         self.cased = cased
@@ -40,6 +34,8 @@ class WordEmbeddingDistance(Constraint):
         self.min_cos_sim = min_cos_sim
         self.max_mse_dist = max_mse_dist
 
+        if not embedding:
+            embedding = WordEmbedding.counterfitted_GLOVE_embedding
         if not isinstance(embedding, AbstractWordEmbedding):
             raise ValueError(
                 "`embedding` object must be of type `textattack.shared.AbstractWordEmbedding`."

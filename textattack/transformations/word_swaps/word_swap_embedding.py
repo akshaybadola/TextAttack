@@ -28,14 +28,11 @@ class WordSwapEmbedding(WordSwap):
     >>> augmenter.augment(s)
     """
 
-    def __init__(
-        self,
-        max_candidates=15,
-        embedding=WordEmbedding.counterfitted_GLOVE_embedding(),
-        **kwargs
-    ):
+    def __init__(self, max_candidates=15, embedding=None, **kwargs):
         super().__init__(**kwargs)
         self.max_candidates = max_candidates
+        if not embedding:
+            embedding = WordEmbedding.counterfitted_GLOVE_embedding()
         if not isinstance(embedding, AbstractWordEmbedding):
             raise ValueError(
                 "`embedding` object must be of type `textattack.shared.AbstractWordEmbedding`."
