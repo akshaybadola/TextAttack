@@ -39,6 +39,9 @@ class GoalFunctionResult(ABC):
         score,
         num_queries,
         ground_truth_output,
+        total_transformations,
+        succ_transformations,
+        results,
     ):
         self.attacked_text = attacked_text
         self.raw_output = raw_output
@@ -47,6 +50,9 @@ class GoalFunctionResult(ABC):
         self.goal_status = goal_status
         self.num_queries = num_queries
         self.ground_truth_output = ground_truth_output
+        self.total_transformations = total_transformations
+        self.succ_transformations = succ_transformations
+        self.results = results
 
         if isinstance(self.raw_output, torch.Tensor):
             self.raw_output = self.raw_output.numpy()

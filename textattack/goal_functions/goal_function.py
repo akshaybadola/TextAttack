@@ -10,6 +10,7 @@ from abc import ABC, abstractmethod
 import lru
 import numpy as np
 import torch
+import sys
 
 from textattack.goal_function_results.goal_function_result import (
     GoalFunctionResultStatus,
@@ -95,11 +96,27 @@ class GoalFunction(ABC):
             attacked_text_list = attacked_text_list[:queries_left]
         self.num_queries += len(attacked_text_list)
         model_outputs = self._call_model(attacked_text_list)
+        # every result has the count of total and successful transformations. Done so as it is easy to return. Change Later.
+        total_transformations = len(model_outputs)
+        succ_transformations = 0
+
+        for attacked_text, raw_output in zip(attacked_text_list, model_outputs):
+            goal_status = self._get_goal_status(
+                raw_output, attacked_text, check_skip=check_skip
+            )
+            if goal_status == 0:
+                succ_transformations += 1
+
         for attacked_text, raw_output in zip(attacked_text_list, model_outputs):
             displayed_output = self._get_displayed_output(raw_output)
             goal_status = self._get_goal_status(
                 raw_output, attacked_text, check_skip=check_skip
             )
+            # Modified by Brahmani Nutakki
+            temp = sys.argv[sys.argv.index("--word-replacement-choice") + 1]
+            if temp == "antonym" and goal_status == 0 and succ_transformations == 1:
+                goal_status = GoalFunctionResultStatus.SEARCHING
+                succ_transformations = 0
             goal_function_score = self._get_score(raw_output, attacked_text)
             results.append(
                 self._goal_function_result_type()(
@@ -110,12 +127,19 @@ class GoalFunction(ABC):
                     goal_function_score,
                     self.num_queries,
                     self.ground_truth_output,
+                    total_transformations,
+                    succ_transformations,
+                    results,
                 )
             )
         return results, self.num_queries == self.query_budget
 
     def _get_goal_status(self, model_output, attacked_text, check_skip=False):
-        # print(f"model output: {model_output}")
+        # Modified by Brahmani Nutakki
+        temp = sys.argv[sys.argv.index("--word-replacement-choice") + 1]
+        if temp == "antonym" and model_output.argmax() != 2 and model_output.argmax() == self.ground_truth_output:
+            check_skip = False
+            return GoalFunctionResultStatus.SUCCEEDED
         should_skip = check_skip and self._should_skip(model_output, attacked_text)
 
         if should_skip:

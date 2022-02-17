@@ -27,6 +27,7 @@ from .word_swap_change_name import WordSwapChangeName
 from .word_swap_root import WordSwapRoot
 from .word_swap_dobj import WordSwapDobj
 from .word_swap_nsubj import WordSwapNsubj
+from .word_swap_all import WordSwapAll
 
 # White box transformation
 from .word_swap_gradient_based import WordSwapGradientBased

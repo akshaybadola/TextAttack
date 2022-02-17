@@ -57,6 +57,7 @@ BLACK_BOX_TRANSFORMATION_CLASS_NAMES = {
     "word-swap-root": "textattack.transformations.WordSwapRoot",
     "word-swap-dobj": "textattack.transformations.WordSwapDobj",
     "word-swap-nsubj": "textattack.transformations.WordSwapNsubj",
+    "word-swap-all": "textattack.transformations.WordSwapAll",
 }
 
 
@@ -108,6 +109,7 @@ SEARCH_METHOD_CLASS_NAMES = {
     "ga-word": "textattack.search_methods.GeneticAlgorithm",
     "greedy-word-wir": "textattack.search_methods.GreedyWordSwapWIR",
     "pso": "textattack.search_methods.ParticleSwarmOptimization",
+    "basic-greedy": "textattack.search_methods.BasicGreedySearch",
 }
 
 
@@ -118,6 +120,7 @@ GOAL_FUNCTION_CLASS_NAMES = {
     "targeted-classification": "textattack.goal_functions.classification.TargetedClassification",
     "untargeted-classification": "textattack.goal_functions.classification.UntargetedClassification",
     "input-reduction": "textattack.goal_functions.classification.InputReduction",
+    "antonym-classification": "textattack.goal_functions.classification.AntonymClassification",
     #
     # Text goal functions
     #

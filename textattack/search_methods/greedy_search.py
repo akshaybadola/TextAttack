@@ -15,7 +15,7 @@ class GreedySearch(BeamSearch):
     """
 
     def __init__(self):
-        super().__init__(beam_width=0)
+        super().__init__(beam_width=1)
 
     def extra_repr_keys(self):
         return []

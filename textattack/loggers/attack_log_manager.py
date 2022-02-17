@@ -1,3 +1,5 @@
+# Modified by Brahmani Nutakki. Added probability printing statements
+
 """
 Managing Attack Logs.
 ========================
@@ -11,6 +13,7 @@ from textattack.metrics.attack_metrics import (
 from textattack.metrics.quality_metrics import Perplexity, USEMetric
 
 from . import CSVLogger, FileLogger, VisdomLogger, WeightsAndBiasesLogger
+from common_pyutil.monitor import Timer
 
 
 class AttackLogManager:
@@ -66,11 +69,14 @@ class AttackLogManager:
 
     def log_attack_details(self, attack_name, model_name):
         # @TODO log a more complete set of attack details
-        attack_detail_rows = [
-            ["Attack algorithm:", attack_name],
-            ["Model:", model_name],
-        ]
-        self.log_summary_rows(attack_detail_rows, "Attack Details", "attack_details")
+        timer = Timer()
+        with timer:
+            attack_detail_rows = [
+                ["Attack algorithm:", attack_name],
+                ["Model:", model_name],
+            ]
+            self.log_summary_rows(attack_detail_rows, "Attack Details", "attack_details")
+        print(f"Print attack details time: {timer.time}")
 
     def log_summary(self):
         total_attacks = len(self.results)
@@ -116,6 +122,41 @@ class AttackLogManager:
 
         summary_table_rows.append(
             ["Avg num queries:", attack_query_stats["avg_num_queries"]]
+        )
+
+        summary_table_rows.append(
+            ["Avg success probabilty of attack including skipped attacks:", words_perturbed_stats["avg_succ_prob_skip"]]
+        )
+        summary_table_rows.append(
+            ["Avg success probabilty of attack excluding skipped attacks:", words_perturbed_stats["avg_succ_prob"]]
+        )
+        summary_table_rows.append(
+            ["Avg success probabilty of shift from ENT to CON excluding skipped attacks:", words_perturbed_stats["avg_prob_ent_con"]]
+        )
+        summary_table_rows.append(
+            ["Avg success probabilty of shift from ENT to NEU excluding skipped attacks:", words_perturbed_stats["avg_prob_ent_neu"]]
+        )
+        summary_table_rows.append(
+            ["Avg success probabilty of shift from CON to ENT excluding skipped attacks:", words_perturbed_stats["avg_prob_con_ent"]]
+        )
+        summary_table_rows.append(
+            ["Avg success probabilty of shift from CON to NEU excluding skipped attacks:", words_perturbed_stats["avg_prob_con_neu"]]
+        )
+        summary_table_rows.append(
+            ["Avg success probabilty of shift from NEU to ENT excluding skipped attacks:", words_perturbed_stats["avg_prob_neu_ent"]]
+        )
+        summary_table_rows.append(
+            ["Avg success probabilty of shift from NEU to CON excluding skipped attacks:", words_perturbed_stats["avg_prob_neu_con"]]
+        )
+
+        summary_table_rows.append(
+            ["Skipped attacks that were labelled ENT:", words_perturbed_stats["skip_ent"]],
+        )
+        summary_table_rows.append(
+            ["Skipped attacks that were labelled CON:", words_perturbed_stats["skip_con"]],
+        )
+        summary_table_rows.append(
+            ["Skipped attacks that were labelled NEU:", words_perturbed_stats["skip_neu"]],
         )
 
         if self.enable_advance_metrics:

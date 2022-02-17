@@ -15,7 +15,6 @@ from .wordnet import get_antonyms
 from .wordnet import get_hypernyms
 from .wordnet import get_hyponyms
 import sys
-# import ipdb
 
 
 # synonyms.add(syn_word.name())
@@ -29,7 +28,6 @@ class WordSwapRoot(WordSwap):
 
     def _get_replacement_words(self, word, current_text, random=False):
         # get replacement words from Wordnet
-        temp = 0
         temp = sys.argv[sys.argv.index("--word-replacement-choice") + 1]
 
         if temp == "synonym":
@@ -55,7 +53,6 @@ class WordSwapRoot(WordSwap):
         return (premise_num_words + root_index)
 
     def _get_transformations(self, current_text, indices_to_modify):
-        # ipdb.set_trace()
         transformed_texts = []
         indices_to_modify = self._get_index_to_replace(current_text)
         try:

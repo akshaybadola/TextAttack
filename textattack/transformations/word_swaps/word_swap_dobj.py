@@ -42,7 +42,6 @@ class WordSwapDobj(WordSwap):
 
     def _get_index_to_replace(self, current_text):
         # Only one index is returned.
-        word_check = 0
         nlp = spacy.load("en_core_web_sm")
         premise = str(list(current_text._text_input.values())[0])
         premise_num_words = len(premise.split())
@@ -52,33 +51,35 @@ class WordSwapDobj(WordSwap):
         # incase of multiple sentences, consider the root word in the last sentence
         for s in text.sents:
             root_word = s.root
-        for child in root_word.children:
-            if child.dep_ == 'dobj':
-                dobj_word = child.text
-                dobj_index = hypothesis.split().index(dobj_word)
-                word_check = 1
-                break
-        if word_check == 0:
-            temp = -1
-        else:
+        try:
+            for child in root_word.children:
+                if child.dep_ == 'dobj':
+                    dobj_word = child.text
+                    dobj_index = hypothesis.split().index(dobj_word)
+                    break
             temp = premise_num_words + dobj_index
+        except Exception:
+            temp = -1
         return temp
 
     def _get_transformations(self, current_text, indices_to_modify):
         transformed_texts = []
         # change to try and except block like in word_swap_root
         indices_to_modify = self._get_index_to_replace(current_text)
-        if indices_to_modify == -1:
-            transformed_texts.append(current_text)
-        else:
-            word = current_text.words[indices_to_modify]
-            replacement_words = self._get_replacement_words(word)
-            transformed_texts_idx = []
-            for r in replacement_words:
-                if r != word and textattack.shared.utils.is_one_word(r):
-                    transformed_texts_idx.append(
-                        current_text.replace_word_at_index(indices_to_modify, r)
-                    )
-                    transformed_texts.extend(transformed_texts_idx)
+        try:
+            if indices_to_modify != -1:
+                word = current_text.words[indices_to_modify]
+                replacement_words = self._get_replacement_words(word, current_text)
+                for r in replacement_words:
+                    transformed_texts_idx = []
+                    if r != wordnet.morphy(word) and textattack.shared.utils.is_one_word(r):
+                        if '_' in r:
+                            r.replace('_', ' ')
+                        transformed_texts_idx.append(
+                            current_text.replace_word_at_index(indices_to_modify, r)
+                        )
+                        transformed_texts.extend(transformed_texts_idx)
+        except IndexError as e:
+            print(e)
 
         return transformed_texts

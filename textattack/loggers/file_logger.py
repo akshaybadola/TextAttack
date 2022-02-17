@@ -52,6 +52,13 @@ class FileLogger(Logger):
             "-" * 45 + " Result " + str(self.num_results) + " " + "-" * 45 + "\n"
         )
         self.fout.write(result.__str__(color_method=self.color_method))
+        self.fout.write("\nTotal transformations possible: " + str(result.perturbed_result.total_transformations) + " Succesful transformations possible: " + str(result.perturbed_result.succ_transformations))
+        goal_status_map = {0: "Success", 1: "Fail", 3: "Skip"}
+        label_map = {0: "contradiction", 1: "entailment", 2: "neutral"}
+        for res in result.perturbed_result.results:
+            self.fout.write("\n\nTransformation:")
+            self.fout.write("\n\tGoal Status: " + goal_status_map[res.goal_status] + ", Ground Truth: " + label_map[res.ground_truth_output] + ", Output: " + label_map[res.output])
+            self.fout.write("\n\tTransformed text: " + str(res.attacked_text.printable_text()))
         self.fout.write("\n")
 
     def log_summary_rows(self, rows, title, window_id):

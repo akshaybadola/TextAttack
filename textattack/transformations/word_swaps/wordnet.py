@@ -9,6 +9,7 @@ Get replacement words from wordnet
 from nltk.corpus import wordnet
 from nltk.wsd import lesk
 import spacy
+import pyinflect
 
 
 def get_synonyms(word, current_text):
@@ -19,16 +20,17 @@ def get_synonyms(word, current_text):
     for token in doc:
         if token.text == word:
             pos = token.pos_
+            tag = token.tag_
             break
     try:
         near_synset = lesk(list(current_text._text_input.values())[1], word, pos.lower()[0])
         # get the words with the same sense as the synset i.e the lemmas
         for lem in near_synset.lemmas():
-            synonyms.add(lem.name())
+            # pyinflect to get correct verb form
+            if nlp(lem.name())[0]._.inflect(tag):
+                synonyms.add(nlp(lem.name())[0]._.inflect(tag))
     except Exception:
-        # dummy line for exception
-        pos = 0
-        # print("No synonym found with the same sense")
+        print("No synonym found with the same sense")
         # synonyms.add(word)
 
     return list(synonyms)
