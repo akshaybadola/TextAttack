@@ -27,6 +27,15 @@ class CSVLogger(Logger):
         original_text = original_text.replace("\n", AttackedText.SPLIT_TOKEN)
         perturbed_text = perturbed_text.replace("\n", AttackedText.SPLIT_TOKEN)
         result_type = result.__class__.__name__.replace("AttackResult", "")
+
+        # Modified by Brahmani Nutakki
+        # Timestamp: Monday 21 March 2022 02:44:24 PM IST
+
+        all_transformations, all_status, all_labels = [], [], []
+        for res in result.perturbed_result.results:
+            all_transformations.append(res.attacked_text.printable_text())
+            all_status.append(res.goal_status)
+            all_labels.append(res.output)
         row = {
             "original_text": original_text,
             "perturbed_text": perturbed_text,
@@ -35,6 +44,11 @@ class CSVLogger(Logger):
             "original_output": result.original_result.output,
             "perturbed_output": result.perturbed_result.output,
             "ground_truth_output": result.original_result.ground_truth_output,
+            "total possible transformations": result.perturbed_result.total_transformations,
+            "succesful transformations": result.perturbed_result.succ_transformations,
+            "all transformations": all_transformations,
+            "all status": all_status,
+            "all labels": all_labels,
             "num_queries": result.num_queries,
             "result_type": result_type,
         }

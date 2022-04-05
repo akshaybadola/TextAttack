@@ -1,5 +1,5 @@
 # Author: Brahmani Nutakki
-# Code to replace all word of hypothesis using wordnet
+# Code to replace all words of hypothesis using wordnet
 
 """
 All Word Swap using WordNet
